@@ -1,4 +1,3 @@
-```
 # 📊 Sales & Customer Insights Dashboard
 
 An end-to-end **data analytics dashboard project** showcasing sales performance, customer insights, and revenue trends using **Streamlit, Power BI, Pandas, and SQL**.
@@ -52,7 +51,6 @@ The project includes **both a web-based Streamlit dashboard and a Power BI repor
 ## 📂 Repository Structure
 
 ```
-
 Sales-Customer-Insights-Dashboard/
 │
 ├── streamlit_app/
@@ -104,4 +102,3 @@ Data Analytics | Machine Learning | Automation
 
 🔗 GitHub: https://github.com/YashJadhav100  
 🔗 LinkedIn: https://www.linkedin.com/in/yashvjadhav
-```
