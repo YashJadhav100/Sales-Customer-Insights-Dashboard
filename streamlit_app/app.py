@@ -1,121 +1,120 @@
+import os
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ----------------------------
-# Page Config
-# ----------------------------
+# -----------------------------
+# Page Configuration
+# -----------------------------
 st.set_page_config(
     page_title="Sales & Customer Insights Dashboard",
     layout="wide"
 )
 
-# ----------------------------
-# Load Data
-# ----------------------------
-DATA_PATH = "data/monthly_revenue_trend.xlsx"
+# -----------------------------
+# Load Data (Cloud-safe)
+# -----------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(BASE_DIR, "data", "monthly_revenue_trend.xlsx")
 
-@st.cache_data
-def load_data():
-    return pd.read_excel(DATA_PATH)
+df = pd.read_excel(DATA_PATH)
 
-df = load_data()
+# Ensure correct types
+df["month"] = pd.to_datetime(df["month"])
+df = df.sort_values("month")
 
-# ----------------------------
+# -----------------------------
 # Sidebar Filters
-# ----------------------------
-st.sidebar.title("Filters")
+# -----------------------------
+st.sidebar.header("Filters")
 
-years = sorted(df["year"].unique())
-selected_year = st.sidebar.selectbox("Select Year", years)
-
-filtered_df = df[df["year"] == selected_year]
-
-# ----------------------------
-# Header
-# ----------------------------
-st.title("📊 Sales & Customer Insights Dashboard")
-st.markdown(
-    """
-    This interactive dashboard analyzes **retail sales performance and customer behavior**
-    to uncover revenue trends and key business insights.
-    """
+df["year"] = df["month"].dt.year
+year = st.sidebar.selectbox(
+    "Select Year",
+    sorted(df["year"].unique())
 )
+
+df_year = df[df["year"] == year]
+
+# -----------------------------
+# Title & Context
+# -----------------------------
+st.title("📊 Sales & Customer Insights Dashboard")
+st.caption("Monthly revenue performance and growth analysis")
 
 st.divider()
 
-# ----------------------------
-# KPI Calculations
-# ----------------------------
-total_revenue = filtered_df["total_revenue"].sum()
-avg_monthly_revenue = filtered_df["total_revenue"].mean()
-best_month = filtered_df.loc[
-    filtered_df["total_revenue"].idxmax(), "month"
-]
+# -----------------------------
+# KPI Section
+# -----------------------------
+col1, col2, col3 = st.columns(3)
 
-total_orders = filtered_df["total_orders"].sum()
-avg_order_value = total_revenue / total_orders
+total_revenue = df_year["total_revenue"].sum()
+avg_monthly_revenue = df_year["total_revenue"].mean()
 
-# ----------------------------
-# KPI Cards
-# ----------------------------
-col1, col2, col3, col4, col5 = st.columns(5)
+best_month = df_year.loc[
+    df_year["total_revenue"].idxmax(), "month"
+].strftime("%b %Y")
 
 col1.metric("Total Revenue", f"${total_revenue:,.0f}")
 col2.metric("Avg Monthly Revenue", f"${avg_monthly_revenue:,.0f}")
 col3.metric("Best Month", best_month)
-col4.metric("Total Orders", f"{total_orders:,}")
-col5.metric("Avg Order Value", f"${avg_order_value:,.2f}")
 
 st.divider()
 
-# ----------------------------
-# Revenue Trend Chart
-# ----------------------------
+# -----------------------------
+# Monthly Revenue Trend
+# -----------------------------
 st.subheader("📈 Monthly Revenue Trend")
 
-fig = px.line(
-    filtered_df,
+fig_revenue = px.line(
+    df_year,
     x="month",
     y="total_revenue",
     markers=True,
-    labels={"total_revenue": "Revenue ($)", "month": "Month"}
+    labels={"month": "Month", "total_revenue": "Revenue ($)"}
 )
 
-fig.update_layout(template="plotly_dark")
-st.plotly_chart(fig, use_container_width=True)
+fig_revenue.update_layout(
+    hovermode="x unified",
+    xaxis_title="Month",
+    yaxis_title="Revenue ($)"
+)
 
-st.divider()
+st.plotly_chart(fig_revenue, use_container_width=True)
 
-# ----------------------------
-# Customer Insights
-# ----------------------------
-st.subheader("👥 Top Customers by Revenue")
+# -----------------------------
+# MoM Growth Chart (RESTORED)
+# -----------------------------
+st.subheader("📊 Month-over-Month Revenue Growth (%)")
 
-if "customer_revenue" in filtered_df.columns:
-    top_customers = (
-        filtered_df.groupby("customer_id")["customer_revenue"]
-        .sum()
-        .sort_values(ascending=False)
-        .head(10)
-        .reset_index()
-    )
+fig_mom = px.bar(
+    df_year,
+    x="month",
+    y="MoM Revenue Growth (%)",
+    labels={
+        "month": "Month",
+        "MoM Revenue Growth (%)": "Growth (%)"
+    },
+    text_auto=".1f"
+)
 
-    st.dataframe(top_customers, use_container_width=True)
-else:
-    st.info("Customer-level revenue not available in this dataset.")
+fig_mom.update_layout(
+    xaxis_title="Month",
+    yaxis_title="Growth (%)"
+)
 
-st.divider()
+st.plotly_chart(fig_mom, use_container_width=True)
 
-# ----------------------------
+# -----------------------------
 # Data Table
-# ----------------------------
-st.subheader("📋 Full Dataset")
-st.dataframe(filtered_df, use_container_width=True)
+# -----------------------------
+with st.expander("📄 View Monthly Data"):
+    st.dataframe(df_year, use_container_width=True)
 
-# ----------------------------
+# -----------------------------
 # Footer
-# ----------------------------
+# -----------------------------
 st.markdown("---")
 st.markdown(
     """
