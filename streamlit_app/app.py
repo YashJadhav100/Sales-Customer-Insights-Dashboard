@@ -1,75 +1,125 @@
-import os
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# -----------------------------
-# Page Configuration
-# -----------------------------
+# ----------------------------
+# Page Config
+# ----------------------------
 st.set_page_config(
     page_title="Sales & Customer Insights Dashboard",
     layout="wide"
 )
 
-# -----------------------------
-# Load Data (Cloud-Safe)
-# -----------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(BASE_DIR, "data", "monthly_revenue_trend.xlsx")
+# ----------------------------
+# Load Data
+# ----------------------------
+DATA_PATH = "data/monthly_revenue_trend.xlsx"
 
-df = pd.read_excel(DATA_PATH)
+@st.cache_data
+def load_data():
+    return pd.read_excel(DATA_PATH)
 
-# Ensure datetime format
-df["month"] = pd.to_datetime(df["month"])
+df = load_data()
 
-# -----------------------------
+# ----------------------------
 # Sidebar Filters
-# -----------------------------
+# ----------------------------
 st.sidebar.title("Filters")
 
-year = st.sidebar.selectbox(
-    "Select Year",
-    sorted(df["month"].dt.year.unique())
+years = sorted(df["year"].unique())
+selected_year = st.sidebar.selectbox("Select Year", years)
+
+filtered_df = df[df["year"] == selected_year]
+
+# ----------------------------
+# Header
+# ----------------------------
+st.title("📊 Sales & Customer Insights Dashboard")
+st.markdown(
+    """
+    This interactive dashboard analyzes **retail sales performance and customer behavior**
+    to uncover revenue trends and key business insights.
+    """
 )
 
-df = df[df["month"].dt.year == year]
+st.divider()
 
-# -----------------------------
-# KPI Metrics
-# -----------------------------
-col1, col2, col3 = st.columns(3)
+# ----------------------------
+# KPI Calculations
+# ----------------------------
+total_revenue = filtered_df["total_revenue"].sum()
+avg_monthly_revenue = filtered_df["total_revenue"].mean()
+best_month = filtered_df.loc[
+    filtered_df["total_revenue"].idxmax(), "month"
+]
 
-total_revenue = df["total_revenue"].sum()
-avg_monthly_revenue = df["total_revenue"].mean()
-best_month = df.loc[df["total_revenue"].idxmax(), "month"].strftime("%b %Y")
+total_orders = filtered_df["total_orders"].sum()
+avg_order_value = total_revenue / total_orders
+
+# ----------------------------
+# KPI Cards
+# ----------------------------
+col1, col2, col3, col4, col5 = st.columns(5)
 
 col1.metric("Total Revenue", f"${total_revenue:,.0f}")
 col2.metric("Avg Monthly Revenue", f"${avg_monthly_revenue:,.0f}")
 col3.metric("Best Month", best_month)
+col4.metric("Total Orders", f"{total_orders:,}")
+col5.metric("Avg Order Value", f"${avg_order_value:,.2f}")
 
-# -----------------------------
+st.divider()
+
+# ----------------------------
 # Revenue Trend Chart
-# -----------------------------
-st.subheader("Monthly Revenue Trend")
+# ----------------------------
+st.subheader("📈 Monthly Revenue Trend")
 
 fig = px.line(
-    df,
+    filtered_df,
     x="month",
     y="total_revenue",
     markers=True,
-    title="Monthly Revenue Trend"
+    labels={"total_revenue": "Revenue ($)", "month": "Month"}
 )
 
-fig.update_layout(
-    xaxis_title="Month",
-    yaxis_title="Total Revenue",
-    template="plotly_dark"
-)
-
+fig.update_layout(template="plotly_dark")
 st.plotly_chart(fig, use_container_width=True)
 
-# -----------------------------
+st.divider()
+
+# ----------------------------
+# Customer Insights
+# ----------------------------
+st.subheader("👥 Top Customers by Revenue")
+
+if "customer_revenue" in filtered_df.columns:
+    top_customers = (
+        filtered_df.groupby("customer_id")["customer_revenue"]
+        .sum()
+        .sort_values(ascending=False)
+        .head(10)
+        .reset_index()
+    )
+
+    st.dataframe(top_customers, use_container_width=True)
+else:
+    st.info("Customer-level revenue not available in this dataset.")
+
+st.divider()
+
+# ----------------------------
 # Data Table
-# -----------------------------
-st.subheader("Revenue Data")
-st.dataframe(df, use_container_width=True)
+# ----------------------------
+st.subheader("📋 Full Dataset")
+st.dataframe(filtered_df, use_container_width=True)
+
+# ----------------------------
+# Footer
+# ----------------------------
+st.markdown("---")
+st.markdown(
+    """
+    **Built by Yash Jadhav**  
+    🔗 [GitHub Repository](https://github.com/YashJadhav100/Sales-Customer-Insights-Dashboard)
+    """
+)
