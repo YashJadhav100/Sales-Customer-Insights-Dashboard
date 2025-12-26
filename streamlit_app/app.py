@@ -3,110 +3,125 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# -----------------------------
+# --------------------------------------------------
 # Page Configuration
-# -----------------------------
+# --------------------------------------------------
 st.set_page_config(
     page_title="Sales & Customer Insights Dashboard",
     layout="wide"
 )
 
-# -----------------------------
-# Load Data (cloud-safe)
-# -----------------------------
+# --------------------------------------------------
+# Title
+# --------------------------------------------------
+st.title("📊 Sales & Customer Insights Dashboard")
+st.caption("Monthly revenue performance and growth analysis")
+
+# --------------------------------------------------
+# Load Data (Cloud-safe path)
+# --------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(BASE_DIR, "data", "monthly_revenue_trend.xlsx")
 
 df = pd.read_excel(DATA_PATH)
 
-# -----------------------------
-# Clean & Normalize Columns
-# -----------------------------
+# --------------------------------------------------
+# Normalize column names (IMPORTANT)
+# --------------------------------------------------
 df.columns = df.columns.str.strip().str.lower()
 
-# Expecting something like: month, revenue, year
-# Auto-detect month column
-if "month" not in df.columns:
-    st.error(f"❌ 'month' column not found. Columns available: {list(df.columns)}")
+# Ensure required columns exist
+required_cols = {"month", "total_revenue"}
+if not required_cols.issubset(df.columns):
+    st.error(f"Dataset must contain columns: {required_cols}")
     st.stop()
 
-if "revenue" not in df.columns:
-    st.error(f"❌ 'revenue' column not found. Columns available: {list(df.columns)}")
-    st.stop()
-
-# Convert month safely
+# Convert month column to datetime
 df["month"] = pd.to_datetime(df["month"])
 
-# Add Year column if missing
-if "year" not in df.columns:
-    df["year"] = df["month"].dt.year
-
-# -----------------------------
+# --------------------------------------------------
 # Sidebar Filters
-# -----------------------------
-st.sidebar.title("Filters")
+# --------------------------------------------------
+st.sidebar.header("Filters")
 
 selected_year = st.sidebar.selectbox(
     "Select Year",
-    sorted(df["year"].unique())
+    sorted(df["month"].dt.year.unique())
 )
 
-df_year = df[df["year"] == selected_year]
+df_year = df[df["month"].dt.year == selected_year].sort_values("month")
 
-# -----------------------------
-# Header
-# -----------------------------
-st.title("📊 Sales & Customer Insights Dashboard")
-st.caption("Monthly revenue performance and growth analysis")
+# --------------------------------------------------
+# Feature Engineering
+# --------------------------------------------------
+df_year["mom_growth_pct"] = df_year["total_revenue"].pct_change() * 100
 
-# -----------------------------
-# KPI Metrics
-# -----------------------------
-total_revenue = df_year["revenue"].sum()
-avg_revenue = df_year["revenue"].mean()
-best_month = df_year.loc[df_year["revenue"].idxmax(), "month"]
+# --------------------------------------------------
+# KPI Section
+# --------------------------------------------------
+k1, k2, k3 = st.columns(3)
 
-col1, col2, col3 = st.columns(3)
+k1.metric(
+    "Total Revenue",
+    f"${df_year['total_revenue'].sum():,.0f}"
+)
 
-col1.metric("Total Revenue", f"${total_revenue:,.0f}")
-col2.metric("Avg Monthly Revenue", f"${avg_revenue:,.0f}")
-col3.metric("Best Month", best_month.strftime("%b %Y"))
+k2.metric(
+    "Avg Monthly Revenue",
+    f"${df_year['total_revenue'].mean():,.0f}"
+)
 
-# -----------------------------
+best_month = df_year.loc[df_year["total_revenue"].idxmax(), "month"].strftime("%b %Y")
+k3.metric("Best Month", best_month)
+
+st.divider()
+
+# --------------------------------------------------
 # Monthly Revenue Trend
-# -----------------------------
+# --------------------------------------------------
 st.subheader("📈 Monthly Revenue Trend")
 
 fig_trend = px.line(
     df_year,
     x="month",
-    y="revenue",
-    markers=True,
-    labels={"month": "Month", "revenue": "Revenue ($)"}
+    y="total_revenue",
+    markers=True
+)
+
+fig_trend.update_layout(
+    xaxis_title="Month",
+    yaxis_title="Revenue ($)",
+    hovermode="x unified"
 )
 
 st.plotly_chart(fig_trend, use_container_width=True)
 
-# -----------------------------
+# --------------------------------------------------
 # Month-over-Month Growth
-# -----------------------------
+# --------------------------------------------------
 st.subheader("📊 Month-over-Month Revenue Growth (%)")
-
-df_year = df_year.sort_values("month")
-df_year["mom_growth"] = df_year["revenue"].pct_change() * 100
 
 fig_mom = px.bar(
     df_year,
     x="month",
-    y="mom_growth",
-    text_auto=".1f",
-    labels={"mom_growth": "Growth (%)", "month": "Month"}
+    y="mom_growth_pct",
+    text_auto=".1f"
+)
+
+fig_mom.update_layout(
+    xaxis_title="Month",
+    yaxis_title="Growth (%)"
 )
 
 st.plotly_chart(fig_mom, use_container_width=True)
 
-# -----------------------------
-# Raw Data (Optional)
-# -----------------------------
-with st.expander("🔍 View Raw Data"):
-    st.dataframe(df_year)
+# --------------------------------------------------
+# Data Preview
+# --------------------------------------------------
+with st.expander("📄 View Data"):
+    st.dataframe(df_year, use_container_width=True)
+
+# --------------------------------------------------
+# Footer
+# --------------------------------------------------
+st.caption("Built with Streamlit, Pandas, and Plotly")
