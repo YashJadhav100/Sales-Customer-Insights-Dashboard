@@ -1,9 +1,10 @@
+import os
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 
 # -----------------------------
-# Page config
+# Page Configuration
 # -----------------------------
 st.set_page_config(
     page_title="Sales & Customer Insights Dashboard",
@@ -11,24 +12,20 @@ st.set_page_config(
 )
 
 # -----------------------------
-# Title
+# Load Data (Cloud-Safe)
 # -----------------------------
-st.title("📊 Sales & Customer Insights Dashboard")
-st.caption("Interactive analysis of monthly revenue trends and growth")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(BASE_DIR, "data", "monthly_revenue_trend.xlsx")
 
-# -----------------------------
-# Load data
-# -----------------------------
-DATA_PATH = "data/monthly_revenue_trend.xlsx"
 df = pd.read_excel(DATA_PATH)
 
-# Ensure datetime
+# Ensure datetime format
 df["month"] = pd.to_datetime(df["month"])
 
 # -----------------------------
-# Sidebar filters
+# Sidebar Filters
 # -----------------------------
-st.sidebar.header("Filters")
+st.sidebar.title("Filters")
 
 year = st.sidebar.selectbox(
     "Select Year",
@@ -38,40 +35,24 @@ year = st.sidebar.selectbox(
 df = df[df["month"].dt.year == year]
 
 # -----------------------------
-# Feature engineering
-# -----------------------------
-df = df.sort_values("month")
-df["MoM_Growth_%"] = df["total_revenue"].pct_change() * 100
-
-# -----------------------------
-# KPI Section
+# KPI Metrics
 # -----------------------------
 col1, col2, col3 = st.columns(3)
 
-col1.metric(
-    "Total Revenue",
-    f"${df['total_revenue'].sum():,.0f}"
-)
-
-col2.metric(
-    "Avg Monthly Revenue",
-    f"${df['total_revenue'].mean():,.0f}"
-)
-
+total_revenue = df["total_revenue"].sum()
+avg_monthly_revenue = df["total_revenue"].mean()
 best_month = df.loc[df["total_revenue"].idxmax(), "month"].strftime("%b %Y")
-col3.metric(
-    "Best Month",
-    best_month
-)
 
-st.divider()
+col1.metric("Total Revenue", f"${total_revenue:,.0f}")
+col2.metric("Avg Monthly Revenue", f"${avg_monthly_revenue:,.0f}")
+col3.metric("Best Month", best_month)
 
 # -----------------------------
-# Monthly Revenue Trend
+# Revenue Trend Chart
 # -----------------------------
-st.subheader("📈 Monthly Revenue Trend")
+st.subheader("Monthly Revenue Trend")
 
-fig_trend = px.line(
+fig = px.line(
     df,
     x="month",
     y="total_revenue",
@@ -79,41 +60,16 @@ fig_trend = px.line(
     title="Monthly Revenue Trend"
 )
 
-fig_trend.update_layout(
+fig.update_layout(
     xaxis_title="Month",
-    yaxis_title="Total Revenue ($)",
-    hovermode="x unified"
+    yaxis_title="Total Revenue",
+    template="plotly_dark"
 )
 
-st.plotly_chart(fig_trend, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True)
 
 # -----------------------------
-# MoM Growth
+# Data Table
 # -----------------------------
-st.subheader("📊 Month-over-Month Revenue Growth (%)")
-
-fig_mom = px.bar(
-    df,
-    x="month",
-    y="MoM_Growth_%",
-    title="MoM Revenue Growth (%)",
-    text_auto=".1f"
-)
-
-fig_mom.update_layout(
-    xaxis_title="Month",
-    yaxis_title="Growth (%)"
-)
-
-st.plotly_chart(fig_mom, use_container_width=True)
-
-# -----------------------------
-# Data Preview
-# -----------------------------
-with st.expander("📄 View Data"):
-    st.dataframe(df, use_container_width=True)
-
-# -----------------------------
-# Footer
-# -----------------------------
-st.caption("Built with Streamlit, Pandas, and Plotly")
+st.subheader("Revenue Data")
+st.dataframe(df, use_container_width=True)
