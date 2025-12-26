@@ -1,0 +1,30 @@
+## Dashboards Included
+
+### 🔹 Power BI Dashboard (Executive Reporting)
+
+A Power BI dashboard designed for stakeholder-level analysis, focusing on:
+
+- Revenue trends
+- Customer KPIs
+- Sales performance insights
+
+📄 File: `powerbi/powerbi_dashboard.pdf`
+
+---
+
+### 🔹 Streamlit Interactive Dashboard
+
+An interactive Python-based dashboard built using Streamlit, Pandas, and Plotly.
+Features include:
+
+- Year-based filtering
+- Revenue KPIs
+- Monthly revenue trends
+- Interactive visualizations
+
+▶ Run locally:
+
+```bash
+cd streamlit_app
+streamlit run app.py
+```
