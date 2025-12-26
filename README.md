@@ -62,7 +62,6 @@ Sales-Customer-Insights-Dashboard/
 ├── CODE.ipynb
 ├── SQL CODE.sql
 ├── Sales & Customer Insights Dashboard.pdf
-├── index.html
 └── README.md
 
 ```
