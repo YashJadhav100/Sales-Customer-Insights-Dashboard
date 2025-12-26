@@ -3,117 +3,110 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# ----------------------------
-# Page Config
-# ----------------------------
+# -----------------------------
+# Page Configuration
+# -----------------------------
 st.set_page_config(
     page_title="Sales & Customer Insights Dashboard",
     layout="wide"
 )
 
-# ----------------------------
-# Load Data (Cloud-safe)
-# ----------------------------
+# -----------------------------
+# Load Data (cloud-safe)
+# -----------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(BASE_DIR, "data", "monthly_revenue_trend.xlsx")
 
 df = pd.read_excel(DATA_PATH)
 
-# Ensure proper types
-df["Month"] = pd.to_datetime(df["Month"])
-df["Year"] = df["Month"].dt.year
-df["Month_Label"] = df["Month"].dt.strftime("%b %Y")
+# -----------------------------
+# Clean & Normalize Columns
+# -----------------------------
+df.columns = df.columns.str.strip().str.lower()
 
-# ----------------------------
+# Expecting something like: month, revenue, year
+# Auto-detect month column
+if "month" not in df.columns:
+    st.error(f"❌ 'month' column not found. Columns available: {list(df.columns)}")
+    st.stop()
+
+if "revenue" not in df.columns:
+    st.error(f"❌ 'revenue' column not found. Columns available: {list(df.columns)}")
+    st.stop()
+
+# Convert month safely
+df["month"] = pd.to_datetime(df["month"])
+
+# Add Year column if missing
+if "year" not in df.columns:
+    df["year"] = df["month"].dt.year
+
+# -----------------------------
 # Sidebar Filters
-# ----------------------------
+# -----------------------------
 st.sidebar.title("Filters")
+
 selected_year = st.sidebar.selectbox(
     "Select Year",
-    sorted(df["Year"].unique())
+    sorted(df["year"].unique())
 )
 
-df_year = df[df["Year"] == selected_year].copy()
+df_year = df[df["year"] == selected_year]
 
-# ----------------------------
+# -----------------------------
 # Header
-# ----------------------------
+# -----------------------------
 st.title("📊 Sales & Customer Insights Dashboard")
 st.caption("Monthly revenue performance and growth analysis")
 
-st.divider()
+# -----------------------------
+# KPI Metrics
+# -----------------------------
+total_revenue = df_year["revenue"].sum()
+avg_revenue = df_year["revenue"].mean()
+best_month = df_year.loc[df_year["revenue"].idxmax(), "month"]
 
-# ----------------------------
-# KPIs
-# ----------------------------
-total_revenue = df_year["Revenue"].sum()
-avg_monthly_revenue = df_year["Revenue"].mean()
-best_month = df_year.loc[df_year["Revenue"].idxmax(), "Month_Label"]
+col1, col2, col3 = st.columns(3)
 
-c1, c2, c3 = st.columns(3)
-c1.metric("Total Revenue", f"${total_revenue:,.0f}")
-c2.metric("Avg Monthly Revenue", f"${avg_monthly_revenue:,.0f}")
-c3.metric("Best Month", best_month)
+col1.metric("Total Revenue", f"${total_revenue:,.0f}")
+col2.metric("Avg Monthly Revenue", f"${avg_revenue:,.0f}")
+col3.metric("Best Month", best_month.strftime("%b %Y"))
 
-st.divider()
-
-# ----------------------------
+# -----------------------------
 # Monthly Revenue Trend
-# ----------------------------
+# -----------------------------
 st.subheader("📈 Monthly Revenue Trend")
 
 fig_trend = px.line(
     df_year,
-    x="Month",
-    y="Revenue",
+    x="month",
+    y="revenue",
     markers=True,
-    labels={"Revenue": "Revenue ($)", "Month": "Month"}
-)
-
-fig_trend.update_layout(
-    yaxis_tickprefix="$",
-    height=450
+    labels={"month": "Month", "revenue": "Revenue ($)"}
 )
 
 st.plotly_chart(fig_trend, use_container_width=True)
 
-st.divider()
-
-# ----------------------------
+# -----------------------------
 # Month-over-Month Growth
-# ----------------------------
+# -----------------------------
 st.subheader("📊 Month-over-Month Revenue Growth (%)")
 
-df_year["MoM_Growth"] = df_year["Revenue"].pct_change() * 100
+df_year = df_year.sort_values("month")
+df_year["mom_growth"] = df_year["revenue"].pct_change() * 100
 
-# Clean NaN / Inf values (CRITICAL FIX)
-df_mom = df_year.replace([float("inf"), float("-inf")], None)
-df_mom = df_mom.dropna(subset=["MoM_Growth"])
+fig_mom = px.bar(
+    df_year,
+    x="month",
+    y="mom_growth",
+    text_auto=".1f",
+    labels={"mom_growth": "Growth (%)", "month": "Month"}
+)
 
-if df_mom.empty:
-    st.warning("Not enough data to compute MoM growth.")
-else:
-    fig_mom = px.bar(
-        df_mom,
-        x="Month_Label",
-        y="MoM_Growth",
-        labels={
-            "Month_Label": "Month",
-            "MoM_Growth": "Growth (%)"
-        }
-    )
+st.plotly_chart(fig_mom, use_container_width=True)
 
-    fig_mom.update_layout(
-        yaxis_ticksuffix="%",
-        height=450
-    )
-
-    st.plotly_chart(fig_mom, use_container_width=True)
-
-st.divider()
-
-# ----------------------------
-# Data Preview
-# ----------------------------
-with st.expander("📄 View Data"):
-    st.dataframe(df_year, use_container_width=True)
+# -----------------------------
+# Raw Data (Optional)
+# -----------------------------
+with st.expander("🔍 View Raw Data"):
+    st.dataframe(df_year)
